@@ -8,6 +8,11 @@ use FastRoute\Dispatcher;
 use FastRoute\Dispatcher\Result\Matched;
 use FastRoute\Dispatcher\Result\MethodNotAllowed;
 use FastRoute\Dispatcher\Result\NotMatched;
+use RuntimeException;
+
+use function preg_last_error_msg;
+use function preg_match;
+use function sprintf;
 
 /**
  * @internal
@@ -34,6 +39,26 @@ abstract class RegexBasedAbstract implements Dispatcher
 
     /** @param DynamicRouteChunks $routeData */
     abstract protected function dispatchVariableRoute(array $routeData, string $uri): ?Matched;
+
+    /**
+     * Matches a route regex, distinguishing a genuine "no match" (preg_match()
+     * returns 0) from a PCRE engine failure such as PREG_BACKTRACK_LIMIT_ERROR
+     * (returns false), which would otherwise fail unrelated routes sharing the
+     * same combined regex chunk.
+     *
+     * @param array<int|string, mixed>|null $matches
+     */
+    protected function matchRoute(string $regex, string $subject, ?array &$matches = null): int
+    {
+        $result = preg_match($regex, $subject, $matches);
+        if ($result === false) {
+            throw new RuntimeException(
+                sprintf('Regex matching failed for "%s": %s', $regex, preg_last_error_msg()),
+            );
+        }
+
+        return $result;
+    }
 
     public function dispatch(string $httpMethod, string $uri): Matched|NotMatched|MethodNotAllowed
     {

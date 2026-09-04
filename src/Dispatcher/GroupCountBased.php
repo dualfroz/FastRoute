@@ -6,7 +6,6 @@ namespace FastRoute\Dispatcher;
 use FastRoute\Dispatcher\Result\Matched;
 
 use function count;
-use function preg_match;
 
 /** @final */
 class GroupCountBased extends RegexBasedAbstract
@@ -15,7 +14,7 @@ class GroupCountBased extends RegexBasedAbstract
     protected function dispatchVariableRoute(array $routeData, string $uri): ?Matched
     {
         foreach ($routeData as $data) {
-            if (preg_match($data['regex'], $uri, $matches) !== 1) {
+            if ($this->matchRoute($data['regex'], $uri, $matches) !== 1) {
                 continue;
             }
 

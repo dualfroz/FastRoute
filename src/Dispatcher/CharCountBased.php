@@ -7,7 +7,6 @@ use FastRoute\Dispatcher\Result\Matched;
 
 use function assert;
 use function end;
-use function preg_match;
 
 /** @final */
 class CharCountBased extends RegexBasedAbstract
@@ -18,7 +17,7 @@ class CharCountBased extends RegexBasedAbstract
         foreach ($routeData as $data) {
             assert(isset($data['suffix']));
 
-            if (preg_match($data['regex'], $uri . $data['suffix'], $matches) !== 1) {
+            if ($this->matchRoute($data['regex'], $uri . $data['suffix'], $matches) !== 1) {
                 continue;
             }
 

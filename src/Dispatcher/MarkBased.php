@@ -5,8 +5,6 @@ namespace FastRoute\Dispatcher;
 
 use FastRoute\Dispatcher\Result\Matched;
 
-use function preg_match;
-
 /** @final */
 class MarkBased extends RegexBasedAbstract
 {
@@ -14,7 +12,7 @@ class MarkBased extends RegexBasedAbstract
     protected function dispatchVariableRoute(array $routeData, string $uri): ?Matched
     {
         foreach ($routeData as $data) {
-            if (preg_match($data['regex'], $uri, $matches) !== 1) {
+            if ($this->matchRoute($data['regex'], $uri, $matches) !== 1) {
                 continue;
             }
 

@@ -13,8 +13,11 @@ use FastRoute\Dispatcher\Result\MethodNotAllowed;
 use FastRoute\Dispatcher\Result\NotMatched;
 use PHPUnit\Framework\Attributes as PHPUnit;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 use function FastRoute\simpleDispatcher;
+use function ini_set;
+use function str_repeat;
 
 /** @phpstan-import-type ExtraParameters from DataGenerator */
 abstract class DispatcherTestCase extends TestCase
@@ -175,6 +178,36 @@ abstract class DispatcherTestCase extends TestCase
         simpleDispatcher(static function (ConfigureRoutes $r): void {
             $r->addRoute('GET', '/{lang:(en|de)}', 'handler0');
         }, $this->generateDispatcherOptions());
+    }
+
+    /**
+     * A PCRE engine failure must surface instead of being reported as
+     * NOT_FOUND for an unrelated route in the same combined regex chunk.
+     *
+     * @see https://github.com/nikic/FastRoute/issues/167
+     */
+    #[PHPUnit\Test]
+    public function regexEngineFailureIsNotSilentlyTreatedAsNotFound(): void
+    {
+        $previousLimit = ini_set('pcre.backtrack_limit', '1000');
+        self::assertNotFalse($previousLimit, 'Unable to lower pcre.backtrack_limit for this test');
+
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessageMatches('/Backtrack limit exhausted/');
+
+            $dispatcher = simpleDispatcher(static function (ConfigureRoutes $r): void {
+                // Catastrophically backtracking pattern.
+                $r->addRoute('GET', '/{p:(?:a?a?)*}/complicated', 'complicated_pattern');
+                // Cheap route in the same chunk: it would match on its own, but the
+                // chunk's preg_match() call fails.
+                $r->addRoute('GET', '/{p:a+}', 'cheap_route');
+            }, $this->generateDispatcherOptions());
+
+            $dispatcher->dispatch('GET', '/' . str_repeat('a', 30));
+        } finally {
+            ini_set('pcre.backtrack_limit', $previousLimit);
+        }
     }
 
     /** @return iterable<string, array{0: string, 1: string, 2: Closure(ConfigureRoutes):void, 3: string, 4?: array<string, string>}> */
